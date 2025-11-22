@@ -6,7 +6,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Loader2, RefreshCw } from "lucide-react";
 import * as tf from '@tensorflow/tfjs';
-import { TFLiteModel, tflite } from '@tensorflow/tfjs-tflite';
+import { TFLiteModel, loadTFLiteModel } from '@tensorflow/tfjs-tflite';
 
 
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ export default function CleftDetectPage() {
         setIsLoading(true);
         await tf.ready();
         const [loadedModel, labelsResponse] = await Promise.all([
-          tflite.loadTFLiteModel(MODEL_PATH),
+          loadTFLiteModel(MODEL_PATH),
           fetch(LABELS_PATH)
         ]);
 
