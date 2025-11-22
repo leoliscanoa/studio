@@ -50,7 +50,7 @@ export default function CleftDetectPage() {
 
         model.current = loadedModel;
         const labelsText = await labelsResponse.text();
-        labels.current = labelsText.split('\\n');
+        labels.current = labelsText.split('\n');
         
         toast({
           title: "Model Loaded",
