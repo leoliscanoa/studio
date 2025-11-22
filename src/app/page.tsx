@@ -1,14 +1,19 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Loader2, RefreshCw } from "lucide-react";
+import * as tf from '@tensorflow/tfjs';
+import { TFLiteModel, tflite } from '@tensorflow/tfjs-tflite';
+
 
 import { Button } from "@/components/ui/button";
 import { CameraView } from "@/components/cleft-detect/camera-view";
 import { PredictionDisplay } from "@/components/cleft-detect/prediction-display";
 import { HelpOverlay } from "@/components/cleft-detect/help-overlay";
+import { useToast } from "@/hooks/use-toast";
 
 export type Prediction = {
   result: "Cleft" | "Non-Cleft";
@@ -19,40 +24,110 @@ export type Prediction = {
   };
 } | null;
 
+const MODEL_PATH = "/model/model.tflite";
+const LABELS_PATH = "/model/labels.txt";
+const MODEL_INPUT_WIDTH = 224;
+const MODEL_INPUT_HEIGHT = 224;
+
 export default function CleftDetectPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<Prediction>(null);
+  
+  const model = useRef<TFLiteModel | null>(null);
+  const labels = useRef<string[] | null>(null);
 
-  const handleCapture = (imageDataUrl: string) => {
+  useEffect(() => {
+    const loadModel = async () => {
+      try {
+        setIsLoading(true);
+        await tf.ready();
+        const [loadedModel, labelsResponse] = await Promise.all([
+          tflite.loadTFLiteModel(MODEL_PATH),
+          fetch(LABELS_PATH)
+        ]);
+
+        model.current = loadedModel;
+        const labelsText = await labelsResponse.text();
+        labels.current = labelsText.split('\\n');
+        
+        toast({
+          title: "Model Loaded",
+          description: "The AI model is ready for predictions.",
+        });
+      } catch (err) {
+        console.error("Failed to load model:", err);
+        toast({
+          variant: "destructive",
+          title: "Model Load Error",
+          description: "Could not load the AI model. Please refresh the page.",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadModel();
+  }, [toast]);
+
+  const handleCapture = async (imageDataUrl: string) => {
+    if (!model.current || !labels.current) {
+        toast({
+          variant: "destructive",
+          title: "Model Not Ready",
+          description: "The AI model is still loading. Please wait a moment.",
+        });
+        return;
+    }
     setCapturedImage(imageDataUrl);
     setIsLoading(true);
     setPrediction(null);
 
-    // Simulate model inference
-    setTimeout(() => {
-      const isCleft = Math.random() > 0.5;
-      const confidence = 0.4 + Math.random() * 0.6; // Confidence between 40% and 100%
-      
-      let scores, result, finalConfidence;
+    try {
+        const img = document.createElement('img');
+        img.src = imageDataUrl;
+        await new Promise(resolve => img.onload = resolve);
+        
+        const tfImg = tf.browser.fromPixels(img);
+        const resizedImg = tf.image.resizeBilinear(tfImg, [MODEL_INPUT_WIDTH, MODEL_INPUT_HEIGHT]);
+        const normalizedImg = resizedImg.div(255.0);
+        const expandedImg = normalizedImg.expandDims(0);
+        
+        const outputTensor = model.current.predict(expandedImg) as tf.Tensor;
+        const scores = await outputTensor.data() as Float32Array;
 
-      if (isCleft) {
-        result = "Cleft";
-        finalConfidence = confidence;
-        scores = { cleft: confidence, nonCleft: 1 - confidence };
-      } else {
-        result = "Non-Cleft";
-        finalConfidence = confidence;
-        scores = { cleft: 1 - confidence, nonCleft: confidence };
-      }
+        const nonCleftScore = scores[0];
+        const cleftScore = scores[1];
+        
+        let result: "Cleft" | "Non-Cleft";
+        let confidence: number;
+        
+        if (cleftScore > nonCleftScore) {
+            result = "Cleft";
+            confidence = cleftScore;
+        } else {
+            result = "Non-Cleft";
+            confidence = nonCleftScore;
+        }
 
-      setPrediction({
-        result,
-        confidence: finalConfidence,
-        scores,
-      });
-      setIsLoading(false);
-    }, 2000);
+        setPrediction({
+            result,
+            confidence,
+            scores: { cleft: cleftScore, nonCleft: nonCleftScore },
+        });
+
+    } catch(err) {
+        console.error("Inference error:", err);
+        toast({
+          variant: "destructive",
+          title: "Prediction Error",
+          description: "Failed to make a prediction. Please try again.",
+        });
+        setCapturedImage(null); // Reset on error to allow retake
+    } finally {
+        setIsLoading(false);
+        tf.disposeVariables();
+    }
   };
 
   const handleRetake = () => {
@@ -78,7 +153,7 @@ export default function CleftDetectPage() {
                 exit={{ opacity: 0 }}
                 className="w-full h-full"
               >
-                <CameraView onCapture={handleCapture} />
+                <CameraView onCapture={handleCapture} disabled={isLoading} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -141,7 +216,8 @@ export default function CleftDetectPage() {
               </motion.div>
             ) : (
                 <motion.div key="loading" className="h-[148px] flex items-center justify-center">
-                    {!capturedImage && <p>Press capture to begin</p>}
+                    {isLoading && <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading Model...</span></div>}
+                    {!isLoading && !capturedImage && <p>Press capture to begin</p>}
                 </motion.div>
             )}
           </AnimatePresence>

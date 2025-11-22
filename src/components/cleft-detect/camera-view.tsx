@@ -9,9 +9,10 @@ import { cn } from "@/lib/utils";
 
 type CameraViewProps = {
   onCapture: (imageDataUrl: string) => void;
+  disabled?: boolean;
 };
 
-export function CameraView({ onCapture }: CameraViewProps) {
+export function CameraView({ onCapture, disabled = false }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -108,7 +109,7 @@ export function CameraView({ onCapture }: CameraViewProps) {
         >
             <Button
                 onClick={handleCapture}
-                disabled={!isCameraReady}
+                disabled={!isCameraReady || disabled}
                 size="lg"
                 className="w-full"
             >
