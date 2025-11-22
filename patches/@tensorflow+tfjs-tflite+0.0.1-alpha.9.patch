@@ -1,0 +1,14 @@
+diff --git a/node_modules/@tensorflow/tfjs-tflite/dist/tflite_task_library_client/bert_nl_classifier.js b/node_modules/@tensorflow/tfjs-tflite/dist/tflite_task_library_client/bert_nl_classifier.js
+index 72d73be..441e8c1 100644
+--- a/node_modules/@tensorflow/tfjs-tflite/dist/tflite_task_library_client/bert_nl_classifier.js
++++ b/node_modules/@tensorflow/tfjs-tflite/dist/tflite_task_library_client/bert_nl_classifier.js
+@@ -14,7 +14,7 @@
+  * =============================================================================
+  */
+ import * as tfliteWebAPIClient from '../tflite_web_api_client';
+-import { BaseTaskLibraryClient } from './common';
++import { BaseTaskLibraryClient } from '../common';
+ /**
+  * Client for BertNLClassifier TFLite Task Library.
+  *
+
