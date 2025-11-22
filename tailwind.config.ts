@@ -45,6 +45,14 @@ export default {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -95,5 +103,16 @@ export default {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [require('tailwindcss-animate'), 
+    function({ addUtilities }: { addUtilities: any }) {
+      addUtilities({
+        '.bg-success': {
+          'background-color': 'hsl(var(--success))'
+        },
+        '.bg-warning': {
+            'background-color': 'hsl(var(--warning))'
+        },
+      })
+    }
+  ],
 } satisfies Config;
